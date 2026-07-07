@@ -11,13 +11,15 @@ def ingest_csv_to_delta(
     source_path: str,
     destination_path: str,
     expected_columns: Iterable[str],
-    spark_session: SparkSession | None = None,
+    spark_session: SparkSession,
+    csv_options: dict[str, object] | None = None,
 ) -> DataFrame:
     """
     Ingest a CSV dataset into the Bronze Delta layer.
 
     The function:
     - reads the source CSV;
+    - applies optional dataset-specific CSV settings;
     - captures source-file lineage;
     - validates required columns;
     - adds Bronze ingestion metadata;
@@ -27,19 +29,25 @@ def ingest_csv_to_delta(
     - returns the written Bronze DataFrame.
     """
 
-    active_spark = spark_session or spark
-
     expected_columns_set = set(expected_columns)
+    csv_options = csv_options or {}
 
     batch_id = datetime.now(timezone.utc).strftime(
         "%Y%m%dT%H%M%SZ"
     )
 
-    raw_df = (
-        active_spark.read
+    reader = (
+        spark_session.read
         .option("header", True)
         .option("inferSchema", True)
         .option("mode", "FAILFAST")
+    )
+
+    for option_name, option_value in csv_options.items():
+        reader = reader.option(option_name, option_value)
+
+    raw_df = (
+        reader
         .csv(source_path)
         .select(
             "*",
@@ -85,7 +93,7 @@ def ingest_csv_to_delta(
     )
 
     written_df = (
-        active_spark.read
+        spark_session.read
         .format("delta")
         .load(destination_path)
     )
@@ -99,9 +107,10 @@ def ingest_csv_to_delta(
             f"Bronze rows: {written_count}"
         )
 
+    display_name = dataset_name.replace("_", " ").title()
+
     print(
-        f"{dataset_name.replace('_', ' ').title()} "
-        "Bronze ingestion completed successfully."
+        f"{display_name} Bronze ingestion completed successfully."
     )
     print(f"Batch ID: {batch_id}")
     print(f"Rows written: {written_count}")
