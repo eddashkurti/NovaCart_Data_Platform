@@ -7,7 +7,6 @@ writes the data as Delta, and validates the result.
 """
 
 from datetime import datetime, timezone
-
 from pyspark.sql import functions as F
 
 
