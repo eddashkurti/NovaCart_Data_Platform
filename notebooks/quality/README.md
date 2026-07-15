@@ -1,3 +1,3 @@
-# Data quality
+# Data Quality
 
-This folder contains notebooks for validation rules, rejected-record handling, quarantine tables, and data quality reporting.
+This folder contains notebooks that define and apply validation rules, manage rejected records and quarantine tables, and produce data quality metrics and reporting.
