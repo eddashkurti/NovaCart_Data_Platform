@@ -1,3 +1,3 @@
-# Silver transformations
+# Silver Transformations
 
-This folder contains notebooks that clean, standardize, validate, and enrich Bronze data into trusted Silver Delta tables.
+This folder contains notebooks that clean, standardize, validate, enrich, and quarantine Bronze data into trusted Silver Delta tables.
