@@ -10,70 +10,78 @@ This document tracks the current implementation status of the NovaCart Data Plat
 
 - Azure resource group created
 - Azure Data Lake Storage Gen2 account created
-- ADLS containers created:
+- ADLS Gen2 containers created:
   - raw
   - bronze
   - silver
-  - gold
   - quarantine
+  - gold
   - logs
 - Azure Databricks workspace created
 - Unity Catalog storage credential configured
-- External locations configured for:
-  - raw
-  - bronze
-  - silver
-  - quarantine
+- External locations configured for the required storage containers
+- Managed identity access configured for Databricks storage access
 
 ### Raw Layer
 
-- All nine Olist CSV files uploaded to:
+All nine Olist source CSV files were uploaded to:
 
-`abfss://raw@stnovacartdev.dfs.core.windows.net/olist/`
+```text
+abfss://raw@stnovacartdev.dfs.core.windows.net/olist/
+```
 
 ### Bronze Layer
 
 - All nine Bronze ingestion pipelines completed
-- Bronze ingestion refactored using:
+- Shared ingestion logic implemented in:
 
-`src/bronze_ingestion.py`
+```text
+src/bronze_ingestion.py
+```
 
-- Bronze outputs written as Delta datasets
+- Source files ingested from ADLS Gen2
+- Bronze outputs written in Delta format
+- Ingestion metadata added:
+  - `_source_file`
+  - `_ingestion_timestamp`
+  - `_batch_id`
+- Source schema validation implemented
 - Bronze row-count validation completed
 
 Bronze datasets:
 
 - customers
 - orders
-- order items
-- order payments
-- order reviews
+- order_items
+- order_payments
+- order_reviews
 - products
 - sellers
 - geolocation
-- category translation
+- category_translation
 
 ### Silver Layer
 
 - All nine Silver transformation pipelines completed
-- Dataset-specific validation rules applied
-- Invalid records routed to quarantine
+- Dataset-specific cleansing and validation rules applied
+- Invalid records routed to the quarantine container
+- Duplicate business-key validation enforced where a reliable grain exists
 - Silver row-count reconciliation completed
-- Silver outputs written as Delta datasets
+- Silver outputs written in Delta format
 
 Silver datasets:
 
 - customers
 - orders
-- order items
-- order payments
-- order reviews
+- order_items
+- order_payments
+- order_reviews
 - products
 - sellers
 - geolocation
-- category translation
+- category_translation
 
-## Silver Validation Summary
+### Silver Validation Summary
 
 | Dataset | Silver Rows | Quarantined Rows |
 |---|---:|---:|
@@ -82,45 +90,96 @@ Silver datasets:
 | Order items | 112,650 | 0 |
 | Order payments | 103,883 | 3 |
 | Order reviews | 99,224 | 0 |
-| Products | 32,945 | 6 |
+| Products | 32,951 | 6 |
 | Sellers | 3,095 | 0 |
 | Geolocation | 1,000,163 | 0 |
 | Category translation | 71 | 0 |
 
-## In Progress
-
-No active layer is currently in progress.
-
-## Not Started
+Total quarantined rows: **198**
 
 ### Gold Layer
 
-Planned work:
+The Gold layer has been completed using dimension and fact tables designed for analytics and reporting.
 
-- create fact and dimension models
-- define business KPIs
-- prepare dashboard-ready tables
-
-Possible Gold models:
+Gold dimensions:
 
 - `dim_customers`
-- `dim_sellers`
-- `dim_products`
 - `dim_dates`
+- `dim_products`
+- `dim_sellers`
+
+Gold facts:
+
 - `fact_orders`
 - `fact_order_items`
 - `fact_payments`
 - `fact_reviews`
 
+Gold dataset counts:
+
+| Dataset | Rows |
+|---|---:|
+| dim_customers | 99,441 |
+| dim_dates | 1,314 |
+| dim_products | 32,951 |
+| dim_sellers | 3,095 |
+| fact_orders | 99,252 |
+| fact_order_items | 112,650 |
+| fact_payments | 103,883 |
+| fact_reviews | 99,224 |
+
+Gold validation includes:
+
+- null business-key checks
+- duplicate grain checks
+- row-count verification
+- fact and dimension integrity checks
+
 ### Data Quality Framework
 
-Planned work:
+The data quality reporting layer has been completed.
 
-- reusable validation helpers
-- reusable quarantine helpers
-- data quality summary outputs
+Implemented notebooks:
 
-### Workflows
+- `01_silver_quarantine_summary.ipynb`
+- `02_data_quality_metrics.ipynb`
+- `03_data_quality_report.ipynb`
+
+Generated reporting datasets:
+
+- `silver_quarantine_summary`
+- `rejection_reason_summary`
+- `data_quality_metrics`
+- `quality_overview`
+- `quarantine_overview`
+
+Current quality results:
+
+- 17 quality metric rows
+- 9 Silver datasets checked
+- 8 Gold datasets checked
+- all quality checks passing
+- 198 total quarantined rows
+- 3 datasets with rejected records
+- 6 datasets without rejected records
+
+## Current Limitations
+
+### Batch Overwrite Strategy
+
+The current implementation uses full overwrite writes across Bronze, Silver, and Gold.
+
+This is intentional because the Olist dataset is a static batch dataset. Incremental ingestion, merge logic, and historical change processing are outside the current project scope.
+
+### Bronze Schema Inference
+
+Bronze ingestion currently uses CSV schema inference.
+
+Explicit source schemas may be added later to strengthen schema enforcement and prevent type drift between ingestion runs.
+
+## Not Started
+
+### Databricks Workflows
 
 Planned work:
 
@@ -128,6 +187,7 @@ Planned work:
 - task dependencies
 - scheduled execution
 - parameterized runs
+- pipeline failure handling
 - audit logging
 
 ### Dashboards
@@ -136,19 +196,20 @@ Planned work:
 
 - Databricks SQL queries
 - KPI dashboards
-- order performance metrics
+- sales and order performance
 - payment analysis
 - review analysis
 - product and seller performance
 
-### Tests
+### Automated Tests
 
 Planned work:
 
-- manual test plan
-- possible PySpark unit tests
-- validation of row counts and schemas
+- executable PySpark tests
+- schema validation tests
+- data-quality rule tests
+- pipeline reconciliation tests
 
 ## Current Recommendation
 
-The next implementation milestone should be the Gold layer design.
+The next implementation milestone should be Databricks Workflow orchestration, followed by dashboard development.

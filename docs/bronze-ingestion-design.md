@@ -48,7 +48,7 @@ Current Bronze output paths:
 
 Bronze notebooks are stored under:
 
-`notebooks/01_bronze/`
+`notebooks/bronze/`
 
 Each source dataset has its own notebook:
 
