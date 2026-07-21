@@ -30,9 +30,19 @@ Silver cleaned and validated layer
       ↓
 Gold dimensions and facts
       ↓
-Gold data-quality reporting datasets
+Gold business aggregates
+      ↓
+Gold quality validation
+      ↓
+Data quality reporting datasets
       ↓
 Databricks SQL dashboards
+```
+
+The complete workflow is orchestrated through a Databricks Job named:
+
+```text
+NovaCart End-to-End Pipeline
 ```
 
 ## Raw Layer
@@ -66,6 +76,7 @@ abfss://bronze@stnovacartdev.dfs.core.windows.net/olist/<dataset_name>
 Bronze responsibilities:
 
 - read raw CSV files
+- apply explicit PySpark source schemas
 - validate required source columns
 - add ingestion metadata
 - write Delta output
@@ -83,7 +94,7 @@ The Bronze layer uses explicit PySpark schemas for all nine source datasets.
 
 This keeps column types stable across reruns and protects downstream Silver and Gold transformations from schema inference drift.
 
-Bronze still uses full overwrite writes because the Olist source is currently processed as a complete static batch.
+Bronze currently uses full overwrite writes because the Olist source is processed as a complete static batch.
 
 ## Silver Layer
 
@@ -152,6 +163,7 @@ Gold responsibilities:
 - create dimension tables
 - create fact tables
 - enforce analytical grains
+- create business aggregates
 - prepare reporting-ready datasets
 - support business analysis
 - support Databricks SQL dashboards
@@ -190,6 +202,7 @@ Gold validation includes:
 - row-count verification
 - dimension uniqueness checks
 - fact grain validation
+- date-key coverage validation across Gold facts
 
 All current Gold quality checks pass.
 
@@ -219,6 +232,46 @@ The quality framework currently checks:
 
 All current quality metrics pass.
 
+## Databricks Job Orchestration
+
+The full platform is orchestrated through:
+
+```text
+NovaCart End-to-End Pipeline
+```
+
+The job contains 31 notebook tasks.
+
+Execution structure:
+
+```text
+9 Bronze ingestion tasks
+        ↓
+9 Silver transformation tasks
+        ↓
+8 Gold dimension and fact tasks
+        ↓
+Gold business aggregates
+        ↓
+Gold quality checks
+        ↓
+Silver quarantine summary
+        ↓
+Data quality metrics
+        ↓
+Data quality report
+```
+
+Bronze tasks run independently in parallel.
+
+Each Silver task depends on its corresponding Bronze task.
+
+Gold dimensions and facts depend on the Silver datasets they consume.
+
+The quality reporting tasks run only after Gold validation succeeds.
+
+The complete end-to-end workflow was executed successfully on July 21, 2026.
+
 ## Layer Responsibilities
 
 | Layer | Purpose | Format |
@@ -227,7 +280,7 @@ All current quality metrics pass.
 | Bronze | Source-preserving ingestion layer | Delta |
 | Silver | Cleaned and validated datasets | Delta |
 | Quarantine | Invalid Silver records with rejection reasons | Delta |
-| Gold | Analytics-ready dimensions and facts | Delta |
+| Gold | Analytics-ready dimensions, facts, and aggregates | Delta |
 | Data quality | Reporting-ready quality summaries and metrics | Delta |
 
 ## Design Decisions
@@ -244,13 +297,13 @@ This provides:
 - simpler Databricks Job task design
 - readable Git history
 
-Gold uses separate notebooks for dimension, fact, aggregate, and validation logic.
+Gold uses separate notebooks for dimensions, facts, business aggregates, and validation logic.
 
 ### Bronze Stays Simple
 
 Bronze intentionally avoids business-rule validation.
 
-It preserves the source structure and adds technical metadata only.
+It preserves the source structure, applies explicit schemas, and adds technical metadata.
 
 ### Silver Owns Data Quality
 
@@ -264,24 +317,37 @@ Geolocation is not deduplicated because repeated ZIP prefixes and coordinates ca
 
 ### Gold Owns Business Modeling
 
-Gold is responsible for analytical modeling, dimensions, facts, grains, and reporting-ready outputs.
+Gold is responsible for analytical modeling, dimensions, facts, grains, aggregates, and reporting-ready outputs.
 
 Gold consumes only valid Silver records. Quarantined records are excluded from Gold processing.
 
-### Full Overwrite Is Intentional
+### Full Overwrite Strategy
 
 Bronze, Silver, and Gold currently use full overwrite writes.
 
-This is intentional because the Olist dataset is static and the project is designed around complete batch reruns.
+This matches the current static-batch implementation of the Olist dataset.
 
-Incremental ingestion, `MERGE` logic, and slowly changing dimensions are outside the current scope.
+Incremental ingestion, Delta `MERGE`, and slowly changing dimensions have not been implemented.
+
+### Workflow Orchestration
+
+The platform uses a Databricks Job to manage task dependencies and full end-to-end execution.
+
+The workflow supports:
+
+- parallel Bronze execution
+- dataset-level Silver dependencies
+- Gold dependency management
+- downstream quality validation
+- repair runs after task failures
+- centralized run monitoring
 
 ## Next Steps
 
 Planned future work includes:
 
-- Databricks Workflows
-- scheduled orchestration
+- scheduled job execution
 - parameterized job runs
+- pipeline audit logging
 - Databricks SQL dashboards
 - executable automated tests

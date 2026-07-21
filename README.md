@@ -1,29 +1,40 @@
 # NovaCart Data Platform
 
-NovaCart is an end-to-end e-commerce data engineering project built on Azure and Databricks.
+NovaCart is an end-to-end e-commerce data engineering project built on Microsoft Azure and Databricks.
 
-The project uses the Olist Brazilian E-Commerce dataset to implement a cloud-based Medallion Architecture with raw ingestion, Bronze Delta ingestion, Silver validation and cleansing, quarantine handling, and future Gold analytics models.
+The project uses the Olist Brazilian E-Commerce dataset to implement a cloud-based Medallion Architecture with Raw ingestion, Bronze Delta processing, Silver cleansing and validation, quarantine handling, Gold analytical modeling, data-quality reporting, and Databricks Job orchestration.
 
-The goal is to simulate how a small production-style data platform would be designed by a data engineering team using Azure Data Lake Storage Gen2, Azure Databricks, Unity Catalog, Delta Lake, PySpark, and Databricks Workflows.
+The goal is to simulate a small production-style data platform using modern cloud data engineering tools and practices.
 
 ---
 
-## Project Objectives
+## Architecture
 
-The main objectives of this project are to:
+```text
+Olist CSV files
+      ↓
+Raw ADLS container
+      ↓
+Bronze Delta ingestion
+      ↓
+Silver cleansing and validation
+      ├── valid records → Silver
+      └── invalid records → Quarantine
+      ↓
+Gold dimensions and facts
+      ↓
+Business aggregates
+      ↓
+Gold quality checks
+      ↓
+Data quality reporting
+```
 
-- Build an end-to-end data platform on Azure
-- Store raw source files in Azure Data Lake Storage Gen2
-- Use Azure Databricks and PySpark for ingestion and transformation
-- Implement a Medallion Architecture: Raw → Bronze → Silver → Gold
-- Store processed layers in Delta format
-- Use Unity Catalog and managed identity for governed storage access
-- Validate source schemas before ingestion
-- Add ingestion metadata for traceability
-- Clean and standardize datasets in the Silver layer
-- Route invalid Silver records to quarantine
-- Prepare future Gold analytical datasets for dashboards
-- Document architecture, validation rules, and design decisions
+The full pipeline is orchestrated through a Databricks Job:
+
+```text
+NovaCart End-to-End Pipeline
+```
 
 ---
 
@@ -32,170 +43,190 @@ The main objectives of this project are to:
 - Azure Data Lake Storage Gen2
 - Azure Databricks
 - Databricks Serverless Compute
+- Databricks Jobs
 - Unity Catalog
 - Azure Databricks Access Connector
 - Managed Identity
 - Delta Lake
 - PySpark
-- Databricks Workflows
-- Databricks SQL / Dashboards
+- Python
 - GitHub
 
 ---
 
 ## Dataset
 
-This project uses the Olist Brazilian E-Commerce public dataset.
+The project uses nine files from the Olist Brazilian E-Commerce public dataset:
 
-Raw source files:
-
-```text
-olist_customers_dataset.csv
-olist_geolocation_dataset.csv
-olist_order_items_dataset.csv
-olist_order_payments_dataset.csv
-olist_order_reviews_dataset.csv
-olist_orders_dataset.csv
-olist_products_dataset.csv
-olist_sellers_dataset.csv
-product_category_name_translation.csv
-```
-
-The dataset contains information about customers, orders, order items, payments, reviews, products, sellers, geolocation, and product category translations.
+- customers
+- orders
+- order items
+- order payments
+- order reviews
+- products
+- sellers
+- geolocation
+- product category translation
 
 ---
 
-## Architecture
-
-NovaCart follows the Medallion Architecture pattern.
-
-```text
-Raw CSV files
-      ↓
-Bronze Delta layer
-      ↓
-Silver cleaned and validated layer
-      ↓
-Gold analytical models
-      ↓
-Databricks SQL dashboards
-```
-
-### Raw Layer
-
-The Raw layer stores the original Olist CSV files exactly as uploaded.
-
-Raw path:
-
-```text
-abfss://raw@stnovacartdev.dfs.core.windows.net/olist/
-```
+## Implementation Highlights
 
 ### Bronze Layer
 
-The Bronze layer reads raw CSV files, validates required source columns, adds ingestion metadata, and writes Delta datasets.
+The Bronze layer ingests all nine raw CSV files into Delta format.
 
-Bronze path pattern:
+Key features:
+
+- explicit PySpark schemas
+- shared ingestion logic
+- required-column validation
+- ingestion metadata
+- empty-input checks
+- Delta write and row-count validation
+
+Shared ingestion module:
 
 ```text
-abfss://bronze@stnovacartdev.dfs.core.windows.net/olist/<dataset_name>
+src/bronze_ingestion.py
 ```
-
-Bronze metadata columns:
-
-- `_source_file`
-- `_ingestion_timestamp`
-- `_batch_id`
 
 ### Silver Layer
 
-The Silver layer cleans, standardizes, validates, and enriches Bronze data.
+The Silver layer applies dataset-specific cleansing and validation.
 
-Silver path pattern:
+Key features:
+
+- text standardization
+- timestamp validation
+- domain validation
+- duplicate business-key checks
+- invalid-record quarantine
+- row-count reconciliation
+- Delta readback validation
+
+### Quarantine Layer
+
+Invalid Silver records are preserved in a separate ADLS container with rejection metadata.
+
+Current quarantine result:
 
 ```text
-abfss://silver@stnovacartdev.dfs.core.windows.net/olist/<dataset_name>
+198 rejected rows
+3 datasets with rejected records
+6 datasets without rejected records
 ```
-
-Silver metadata column:
-
-- `_silver_processed_at`
-
-Invalid Silver records are routed to quarantine.
-
-Quarantine path pattern:
-
-```text
-abfss://quarantine@stnovacartdev.dfs.core.windows.net/olist/<dataset_name>
-```
-
-Quarantine metadata columns:
-
-- `_rejection_reason`
-- `_quarantined_at`
-- `_source_dataset`
 
 ### Gold Layer
 
-The Gold layer has not been implemented yet.
+The Gold layer contains analytics-ready dimensions and facts.
 
-Planned Gold models include:
+Dimensions:
 
 - `dim_customers`
-- `dim_sellers`
-- `dim_products`
 - `dim_dates`
+- `dim_products`
+- `dim_sellers`
+
+Facts:
+
 - `fact_orders`
 - `fact_order_items`
 - `fact_payments`
 - `fact_reviews`
 
----
+The Gold layer also includes business aggregates and dedicated quality checks.
 
-## Storage Layout
+### Data Quality Framework
 
-The project uses the following ADLS Gen2 containers:
+The project produces reporting-ready quality datasets for:
 
-| Container | Purpose |
-|---|---|
-| `raw` | Original uploaded Olist CSV files |
-| `bronze` | Source-preserving Delta ingestion outputs |
-| `silver` | Cleaned and validated Delta datasets |
-| `gold` | Future business-ready analytical models |
-| `quarantine` | Invalid records rejected during Silver validation |
-| `logs` | Future pipeline audit and operational logs |
+- Silver quarantine summaries
+- rejection reason summaries
+- Silver and Gold quality metrics
+- overall quality status
+- quarantine monitoring
 
-Storage account:
-
-```text
-stnovacartdev
-```
-
-Resource group:
-
-```text
-rg-novacart-dev
-```
+All current quality checks pass.
 
 ---
 
-## Unity Catalog External Locations
+## Final Dataset Counts
 
-Configured external locations:
+### Bronze
 
-| External Location | Container |
-|---|---|
-| `novacart_raw_location` | `raw` |
-| `novacart_bronze_location` | `bronze` |
-| `novacart_silver_location` | `silver` |
-| `novacart_quarantine_location` | `quarantine` |
+| Dataset | Rows |
+|---|---:|
+| Customers | 99,441 |
+| Orders | 99,441 |
+| Order items | 112,650 |
+| Order payments | 103,886 |
+| Order reviews | 99,224 |
+| Products | 32,951 |
+| Sellers | 3,095 |
+| Geolocation | 1,000,163 |
+| Category translation | 71 |
 
-Future external locations:
+### Silver
 
-| External Location | Container |
-|---|---|
-| `novacart_gold_location` | `gold` |
-| `novacart_logs_location` | `logs` |
+| Dataset | Valid Rows | Quarantined Rows |
+|---|---:|---:|
+| Customers | 99,441 | 0 |
+| Orders | 99,252 | 189 |
+| Order items | 112,650 | 0 |
+| Order payments | 103,883 | 3 |
+| Order reviews | 99,224 | 0 |
+| Products | 32,951 | 6 |
+| Sellers | 3,095 | 0 |
+| Geolocation | 1,000,163 | 0 |
+| Category translation | 71 | 0 |
+
+### Gold
+
+| Dataset | Rows |
+|---|---:|
+| `dim_customers` | 99,441 |
+| `dim_dates` | 1,314 |
+| `dim_products` | 32,951 |
+| `dim_sellers` | 3,095 |
+| `fact_orders` | 99,252 |
+| `fact_order_items` | 112,650 |
+| `fact_payments` | 103,883 |
+| `fact_reviews` | 99,224 |
+
+---
+
+## Databricks Job Orchestration
+
+The end-to-end Databricks Job contains 31 notebook tasks:
+
+```text
+9 Bronze tasks
+      ↓
+9 Silver tasks
+      ↓
+8 Gold dimension and fact tasks
+      ↓
+Gold business aggregates
+      ↓
+Gold quality checks
+      ↓
+3 data quality reporting tasks
+```
+
+The workflow supports:
+
+- parallel task execution
+- dataset-level dependencies
+- failure isolation
+- repair runs
+- centralized run monitoring
+
+The complete pipeline was executed successfully on July 21, 2026.
+
+```text
+Final run status: Succeeded
+```
 
 ---
 
@@ -209,23 +240,20 @@ NovaCart_Data_Platform/
 │   └── storage-layout.md
 │
 ├── config/
-│   ├── README.md
-│   └── dev_config.json
+│   └── README.md
 │
 ├── docs/
 │   ├── adls-unity-catalog-setup.md
 │   ├── bronze-ingestion-design.md
+│   ├── gold-layer-design.md
 │   ├── project-status.md
 │   └── silver-transformation-design.md
 │
 ├── notebooks/
-│   ├── 00_setup/
-│   ├── 01_bronze/
-│   ├── 02_silver/
-│   ├── 03_gold/
-│   ├── 04_quality/
-│   ├── 05_workflows/
-│   └── 06_dashboards/
+│   ├── bronze/
+│   ├── silver/
+│   ├── gold/
+│   └── quality/
 │
 ├── src/
 │   ├── __init__.py
@@ -236,206 +264,74 @@ NovaCart_Data_Platform/
 │   ├── README.md
 │   └── test_plan.md
 │
+├── LICENSE.md
 └── README.md
 ```
 
 ---
 
-## Bronze Layer
+## Storage
 
-The Bronze layer is implemented for all nine Olist datasets.
+The project uses separate ADLS Gen2 containers:
 
-Bronze ingestion uses a shared Python module:
+| Container | Purpose |
+|---|---|
+| `raw` | Original source files |
+| `bronze` | Source-preserving Delta datasets |
+| `silver` | Cleaned and validated datasets |
+| `quarantine` | Rejected Silver records |
+| `gold` | Analytical models and quality outputs |
+| `logs` | Reserved for future operational logging |
 
-```text
-src/bronze_ingestion.py
-```
+Storage access is governed through Unity Catalog and managed identity.
 
-Main function:
-
-```text
-ingest_csv_to_delta
-```
-
-The shared Bronze module handles:
-
-- reading raw CSV files
-- applying optional CSV options
-- validating expected source columns
-- adding ingestion metadata
-- checking for empty input
-- writing Delta output
-- reading written Delta output back
-- validating row counts
-
-### Bronze Row Counts
-
-| Dataset | Bronze Rows |
-|---|---:|
-| Customers | 99,441 |
-| Orders | 99,441 |
-| Order items | 112,650 |
-| Order payments | 103,886 |
-| Order reviews | 99,224 |
-| Products | 32,951 |
-| Sellers | 3,095 |
-| Geolocation | 1,000,163 |
-| Category translation | 71 |
+No secrets are stored in the repository.
 
 ---
 
-## Silver Layer
-
-The Silver layer is implemented for all nine Olist datasets.
-
-Silver transformations are dataset-specific because each dataset has different validation rules and cleaning requirements.
-
-Silver handles:
-
-- required-column validation
-- trimming and standardizing text fields
-- timestamp validation
-- domain validation
-- invalid-record quarantine routing
-- derived operational fields
-- row-count reconciliation
-- Delta write validation
-
-### Silver Validation Summary
-
-| Dataset | Silver Rows | Quarantined Rows |
-|---|---:|---:|
-| Customers | 99,441 | 0 |
-| Orders | 99,252 | 189 |
-| Order items | 112,650 | 0 |
-| Order payments | 103,883 | 3 |
-| Order reviews | 99,224 | 0 |
-| Products | 32,945 | 6 |
-| Sellers | 3,095 | 0 |
-| Geolocation | 1,000,163 | 0 |
-| Category translation | 71 | 0 |
-
----
-
-## Quarantine Handling
-
-Invalid records from Silver validation are not dropped.
-
-They are written to the quarantine container with metadata explaining why the record was rejected.
-
-Examples of quarantined records include:
-
-- orders with invalid delivery timestamp chronology
-- order payments with invalid payment type
-- products with invalid weight values
-
-This keeps the pipeline auditable and prevents silent data loss.
-
----
-
-## Current Project Status
-
-Completed:
-
-- Azure resource group setup
-- ADLS Gen2 storage account setup
-- Raw, Bronze, Silver, Gold, quarantine, and logs containers
-- Azure Databricks workspace setup
-- Unity Catalog external locations for Raw, Bronze, Silver, and quarantine
-- Raw file upload
-- Bronze ingestion for all nine datasets
-- Shared Bronze ingestion module
-- Silver transformations for all nine datasets
-- Quarantine handling
-- Row-count reconciliation
-- Architecture documentation
-- Storage layout documentation
-- Test plan documentation
-- Development configuration metadata
-
-Not started yet:
-
-- Gold analytical models
-- Databricks Workflows orchestration
-- Databricks SQL dashboards
-- Automated PySpark tests
-- Pipeline audit logging
-
----
-
-## Validation Approach
-
-Current validation is performed inside Databricks notebooks.
-
-Validation includes:
-
-- source schema checks
-- required-column checks
-- empty-input checks
-- row-count validation
-- Delta write/readback validation
-- Silver and quarantine reconciliation
-- manual schema inspection
-- sample output inspection
-
-Automated tests are planned for a later stage after more reusable transformation utilities are introduced.
-
----
-
-## Configuration
-
-The `config/` folder stores non-secret development metadata.
-
-It includes:
-
-- project name
-- environment name
-- storage account name
-- container names
-- base storage paths
-- dataset names
-- raw file names
-- Bronze, Silver, and quarantine path names
-
-Secrets must not be stored in this repository.
-
-Authentication is handled through Azure Databricks, Unity Catalog, and managed identity.
-
----
-
-## Next Milestone
-
-The next planned milestone is the Gold layer.
-
-Gold will focus on:
-
-- fact and dimension modeling
-- analytical joins
-- business KPI definitions
-- dashboard-ready Delta datasets
-
-Planned models:
-
-- customer dimension
-- seller dimension
-- product dimension
-- date dimension
-- order fact table
-- payment fact table
-- review fact table
-
----
-
-## Project Status
-
-Current status:
+## Current Status
 
 ```text
 Raw: Completed
 Bronze: Completed
 Silver: Completed
 Quarantine: Completed
-Gold: Not started
-Workflows: Not started
+Gold: Completed
+Data quality: Completed
+Databricks Job orchestration: Completed
 Dashboards: Not started
+Automated tests: Planned
 ```
+
+---
+
+## Future Improvements
+
+- Databricks SQL dashboards
+- scheduled job execution
+- parameterized workflow runs
+- pipeline audit logging
+- executable PySpark tests
+- CI-based validation
+- incremental processing
+
+---
+
+## Documentation
+
+Detailed implementation documentation is available in:
+
+- `architecture/medallion-architecture.md`
+- `architecture/storage-layout.md`
+- `docs/bronze-ingestion-design.md`
+- `docs/silver-transformation-design.md`
+- `docs/gold-layer-design.md`
+- `docs/project-status.md`
+
+---
+
+## License
+
+This project is licensed under the MIT License.
+
+See `LICENSE.md`.

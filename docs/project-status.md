@@ -40,12 +40,14 @@ src/bronze_ingestion.py
 ```
 
 - Source files ingested from ADLS Gen2
+- Explicit PySpark schemas implemented for all nine source datasets
 - Bronze outputs written in Delta format
 - Ingestion metadata added:
   - `_source_file`
   - `_ingestion_timestamp`
   - `_batch_id`
-- Source schema validation implemented
+- Required-column validation implemented
+- Source-schema validation implemented
 - Bronze row-count validation completed
 
 Bronze datasets:
@@ -134,6 +136,9 @@ Gold validation includes:
 - duplicate grain checks
 - row-count verification
 - fact and dimension integrity checks
+- date-key coverage validation
+
+All current Gold validation checks pass.
 
 ### Data Quality Framework
 
@@ -163,32 +168,78 @@ Current quality results:
 - 3 datasets with rejected records
 - 6 datasets without rejected records
 
+### Databricks Job Orchestration
+
+The full NovaCart pipeline is orchestrated through a Databricks Job named:
+
+```text
+NovaCart End-to-End Pipeline
+```
+
+The job contains 31 notebook tasks across Bronze, Silver, Gold, and data quality reporting.
+
+Execution structure:
+
+```text
+9 Bronze ingestion tasks
+        ↓
+9 Silver transformation tasks
+        ↓
+8 Gold dimension and fact tasks
+        ↓
+Gold business aggregates
+        ↓
+Gold quality checks
+        ↓
+Silver quarantine summary
+        ↓
+Data quality metrics
+        ↓
+Data quality report
+```
+
+Bronze tasks run independently in parallel.
+
+Each Silver task depends on its corresponding Bronze task.
+
+Gold dimensions and facts depend on the Silver datasets they consume.
+
+The final quality tasks run only after Gold validation succeeds.
+
+The complete end-to-end job was executed successfully on July 21, 2026.
+
+Final run result:
+
+```text
+Succeeded
+```
+
+The successful run validated:
+
+- all 9 Bronze datasets
+- all 9 Silver datasets
+- all 8 Gold dimension and fact tables
+- Gold business aggregates
+- Gold quality checks
+- all 3 data quality reporting notebooks
+
 ## Current Limitations
 
 ### Batch Overwrite Strategy
 
 The current implementation uses full overwrite writes across Bronze, Silver, and Gold.
 
-This is intentional because the Olist dataset is a static batch dataset. Incremental ingestion, merge logic, and historical change processing are outside the current project scope.
+This matches the current static-batch implementation of the Olist dataset.
 
-### Explicit Bronze Schemas
+Incremental ingestion, Delta `MERGE`, and historical change processing have not been implemented.
 
-Bronze ingestion uses explicit PySpark schemas for all nine source datasets.
+### Scheduling and Parameters
 
-This prevents silent type inference changes between runs and preserves a stable schema contract for downstream Silver and Gold transformations.
+The Databricks Job currently supports manual end-to-end execution.
+
+Scheduled triggers, job parameters, backfill logic, and audit logging have not yet been added.
 
 ## Not Started
-
-### Databricks Workflows
-
-Planned work:
-
-- Databricks Jobs
-- task dependencies
-- scheduled execution
-- parameterized runs
-- pipeline failure handling
-- audit logging
 
 ### Dashboards
 
@@ -200,6 +251,7 @@ Planned work:
 - payment analysis
 - review analysis
 - product and seller performance
+- data quality monitoring
 
 ### Automated Tests
 
@@ -212,4 +264,4 @@ Planned work:
 
 ## Current Recommendation
 
-The next implementation milestone should be Databricks Workflow orchestration, followed by dashboard development.
+The next implementation milestone should be Databricks SQL dashboard development, followed by automated test coverage and optional job scheduling.
