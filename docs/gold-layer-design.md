@@ -272,6 +272,7 @@ Validation includes:
 - dimension uniqueness checks
 - fact grain uniqueness checks
 - expected output verification
+- date-key coverage validation across Gold facts
 
 The Gold quality notebook validates all eight Gold datasets.
 
@@ -318,11 +319,27 @@ The Gold layer currently does not include:
 
 - incremental merge logic
 - slowly changing dimensions
-- orchestration through Databricks Workflows
 - BI dashboards
 - automated test execution in CI
 
-These are planned future improvements.
+The Gold layer is orchestrated through the Databricks Job:
+
+NovaCart End-to-End Pipeline
+
+## Databricks Job Orchestration
+
+Gold execution is managed through the `NovaCart End-to-End Pipeline` Databricks Job.
+
+Execution order:
+
+
+Gold dimensions and facts
+        ↓
+Gold business aggregates
+        ↓
+Gold quality checks
+        ↓
+Data quality reporting
 
 ## Relationship to Dashboards
 
