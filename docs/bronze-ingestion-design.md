@@ -76,16 +76,17 @@ The shared function is:
 
 It handles:
 
-1. reading the CSV source file
-2. applying optional CSV options
-3. capturing source-file lineage
-4. validating expected columns
-5. adding ingestion metadata
-6. checking for empty input
-7. writing Delta output
-8. reading the written output back
-9. validating row counts
-10. printing completion details
+1. validating the supplied source schema
+2. reading the CSV source file with an explicit schema
+3. applying optional CSV options
+4. capturing source-file lineage
+5. validating expected columns
+6. adding ingestion metadata
+7. checking for empty input
+8. writing Delta output
+9. reading the written output back
+10. validating row counts
+11. printing completion details
 
 This keeps the notebooks short and table-specific while avoiding duplicated ingestion boilerplate.
 
@@ -104,8 +105,10 @@ These columns provide traceability for source-file lineage, ingestion time, and 
 Bronze CSV files are read with:
 
 - header enabled
-- schema inference enabled
-- FAILFAST mode
+- explicit PySpark schemas
+- `FAILFAST` mode
+
+Each Bronze notebook defines the source schema for its dataset and passes it to the shared `ingest_csv_to_delta` function.
 
 The order reviews dataset uses additional CSV options because review comments can contain multiline text:
 
@@ -113,14 +116,28 @@ The order reviews dataset uses additional CSV options because review comments ca
 - `quote`
 - `escape`
 
+## Schema Enforcement
+
+Explicit PySpark schemas are defined for all nine Olist source datasets.
+
+The shared ingestion function validates that the supplied schema contains all required source columns before reading the CSV.
+
+This provides:
+
+- stable column types across runs
+- predictable downstream contracts
+- clearer failures when source structures change
+- protection against silent schema inference drift
+
 ## Validation Rules
 
-Bronze performs only basic technical validation:
+Bronze performs basic technical validation:
 
-- required columns must exist
-- source file must contain records
-- Delta write must complete
-- written row count must match source row count
+- the supplied schema must contain all expected columns
+- required source columns must exist
+- the source file must contain records
+- the Delta write must complete
+- the written row count must match the source row count
 
 Bronze does not perform heavy cleaning, business validation, or standardization. Those responsibilities belong to the Silver layer.
 
@@ -156,6 +173,7 @@ Silver reads from Bronze Delta paths and applies:
 - cleaning
 - type standardization
 - business validation
+- duplicate business-key validation
 - quarantine routing
 - derived columns
 - row-count reconciliation

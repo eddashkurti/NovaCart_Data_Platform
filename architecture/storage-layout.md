@@ -107,6 +107,10 @@ Bronze metadata columns:
 - `_ingestion_timestamp`
 - `_batch_id`
 
+Bronze source schemas are explicitly defined in the ingestion notebooks and passed to the shared ingestion module.
+
+This keeps column types stable across reruns and protects downstream Silver and Gold transformations from schema inference drift.
+
 ## Silver Container
 
 Silver base path:
@@ -349,10 +353,10 @@ abfss://silver@stnovacartdev.dfs.core.windows.net/olist/orders
 
 Unity Catalog governs access to the ADLS containers, but the current pipeline does not depend on registered managed tables.
 
-### Full Overwrite Strategy
+### Current Write Strategy
 
 Bronze, Silver, and Gold currently use full overwrite writes.
 
-This is intentional because the Olist dataset is static and the platform is designed around complete batch reruns.
+This matches the current static-batch implementation of the Olist dataset.
 
-Incremental ingestion, Delta `MERGE`, and historical change processing are outside the current project scope.
+An incremental strategy using Delta `MERGE`, stable business keys, and batch metadata is still under consideration and has not yet been implemented.

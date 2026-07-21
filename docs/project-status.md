@@ -171,11 +171,11 @@ The current implementation uses full overwrite writes across Bronze, Silver, and
 
 This is intentional because the Olist dataset is a static batch dataset. Incremental ingestion, merge logic, and historical change processing are outside the current project scope.
 
-### Bronze Schema Inference
+### Explicit Bronze Schemas
 
-Bronze ingestion currently uses CSV schema inference.
+Bronze ingestion uses explicit PySpark schemas for all nine source datasets.
 
-Explicit source schemas may be added later to strengthen schema enforcement and prevent type drift between ingestion runs.
+This prevents silent type inference changes between runs and preserves a stable schema contract for downstream Silver and Gold transformations.
 
 ## Not Started
 

@@ -79,7 +79,11 @@ Bronze metadata columns:
 - `_ingestion_timestamp`
 - `_batch_id`
 
-The Bronze layer currently uses schema inference and full overwrite writes because the Olist source is a static batch dataset.
+The Bronze layer uses explicit PySpark schemas for all nine source datasets.
+
+This keeps column types stable across reruns and protects downstream Silver and Gold transformations from schema inference drift.
+
+Bronze still uses full overwrite writes because the Olist source is currently processed as a complete static batch.
 
 ## Silver Layer
 
@@ -281,4 +285,3 @@ Planned future work includes:
 - parameterized job runs
 - Databricks SQL dashboards
 - executable automated tests
-- explicit Bronze schemas
