@@ -6,18 +6,20 @@ NovaCart uses Azure Data Lake Storage Gen2 to separate data by processing layer.
 
 The storage account is:
 
-`stnovacartdev`
+```text
+stnovacartdev
+```
 
-The project uses separate containers for each major data layer:
+The project uses separate containers for:
 
 - `raw`
 - `bronze`
 - `silver`
-- `gold`
 - `quarantine`
+- `gold`
 - `logs`
 
-This separation keeps source data, processed data, invalid records, and future logs isolated from each other.
+This separation keeps source files, processed data, rejected records, analytical models, and future operational logs isolated from each other.
 
 ## Storage Account
 
@@ -36,17 +38,19 @@ This separation keeps source data, processed data, invalid records, and future l
 | `raw` | Original uploaded Olist CSV files |
 | `bronze` | Source-preserving Delta ingestion outputs |
 | `silver` | Cleaned and validated Delta datasets |
-| `gold` | Future business-ready analytical models |
-| `quarantine` | Invalid records rejected during Silver validation |
-| `logs` | Future pipeline audit logs and operational logs |
+| `quarantine` | Records rejected during Silver validation |
+| `gold` | Analytics-ready dimensions, facts, and quality reports |
+| `logs` | Future pipeline audit and operational logs |
 
 ## Raw Container
 
-Raw data path:
+Raw base path:
 
-`abfss://raw@stnovacartdev.dfs.core.windows.net/olist/`
+```text
+abfss://raw@stnovacartdev.dfs.core.windows.net/olist/
+```
 
-The raw container stores the original Olist CSV files:
+The Raw container stores the original Olist CSV files:
 
 - `olist_customers_dataset.csv`
 - `olist_orders_dataset.csv`
@@ -63,12 +67,15 @@ Rules:
 - Raw files are uploaded manually.
 - Raw files are not modified by the pipeline.
 - Raw files act as the source of truth for Bronze ingestion.
+- Raw data remains in CSV format.
 
 ## Bronze Container
 
 Bronze base path:
 
-`abfss://bronze@stnovacartdev.dfs.core.windows.net/olist/`
+```text
+abfss://bronze@stnovacartdev.dfs.core.windows.net/olist/
+```
 
 Bronze dataset paths:
 
@@ -90,13 +97,23 @@ Each Bronze dataset contains:
 
 - Delta transaction logs
 - Parquet data files
-- Bronze ingestion metadata columns
+- source-file lineage
+- ingestion timestamps
+- batch identifiers
+
+Bronze metadata columns:
+
+- `_source_file`
+- `_ingestion_timestamp`
+- `_batch_id`
 
 ## Silver Container
 
 Silver base path:
 
-`abfss://silver@stnovacartdev.dfs.core.windows.net/olist/`
+```text
+abfss://silver@stnovacartdev.dfs.core.windows.net/olist/
+```
 
 Silver dataset paths:
 
@@ -114,13 +131,25 @@ Silver dataset paths:
 
 Silver outputs are stored as Delta datasets.
 
-Silver contains cleaned, standardized, and validated records.
+Silver contains:
+
+- cleaned records
+- standardized values
+- validated business fields
+- preserved Bronze lineage
+- Silver processing metadata
+
+Silver metadata column:
+
+- `_silver_processed_at`
 
 ## Quarantine Container
 
 Quarantine base path:
 
-`abfss://quarantine@stnovacartdev.dfs.core.windows.net/olist/`
+```text
+abfss://quarantine@stnovacartdev.dfs.core.windows.net/olist/
+```
 
 Quarantine dataset paths:
 
@@ -136,7 +165,7 @@ Quarantine dataset paths:
 | Geolocation | `quarantine/olist/geolocation` |
 | Category translation | `quarantine/olist/category_translation` |
 
-The quarantine container stores records that fail Silver validation.
+The Quarantine container stores records that fail Silver validation.
 
 Each quarantined record includes:
 
@@ -146,41 +175,115 @@ Each quarantined record includes:
 - `_source_dataset`
 - Bronze lineage metadata
 
+Current quarantine results:
+
+| Dataset | Rejected Rows |
+|---|---:|
+| Customers | 0 |
+| Orders | 189 |
+| Order items | 0 |
+| Order payments | 3 |
+| Order reviews | 0 |
+| Products | 6 |
+| Sellers | 0 |
+| Geolocation | 0 |
+| Category translation | 0 |
+
+Total quarantined rows:
+
+```text
+198
+```
+
 ## Gold Container
 
 Gold base path:
 
-`abfss://gold@stnovacartdev.dfs.core.windows.net/`
+```text
+abfss://gold@stnovacartdev.dfs.core.windows.net/olist/
+```
 
-The Gold layer has not been implemented yet.
+The Gold container stores analytics-ready dimension and fact tables.
 
-Planned use:
+### Dimension Paths
 
-- fact tables
-- dimension tables
-- KPI tables
-- dashboard-ready analytical outputs
+| Dataset | Path |
+|---|---|
+| Customer dimension | `gold/olist/dim_customers` |
+| Date dimension | `gold/olist/dim_dates` |
+| Product dimension | `gold/olist/dim_products` |
+| Seller dimension | `gold/olist/dim_sellers` |
+
+### Fact Paths
+
+| Dataset | Path |
+|---|---|
+| Orders fact | `gold/olist/fact_orders` |
+| Order items fact | `gold/olist/fact_order_items` |
+| Payments fact | `gold/olist/fact_payments` |
+| Reviews fact | `gold/olist/fact_reviews` |
+
+Current Gold row counts:
+
+| Dataset | Rows |
+|---|---:|
+| `dim_customers` | 99,441 |
+| `dim_dates` | 1,314 |
+| `dim_products` | 32,951 |
+| `dim_sellers` | 3,095 |
+| `fact_orders` | 99,252 |
+| `fact_order_items` | 112,650 |
+| `fact_payments` | 103,883 |
+| `fact_reviews` | 99,224 |
+
+## Gold Data Quality Storage
+
+Data-quality reporting outputs are stored under:
+
+```text
+abfss://gold@stnovacartdev.dfs.core.windows.net/olist/data_quality/
+```
+
+Quality dataset paths:
+
+| Dataset | Path |
+|---|---|
+| Silver quarantine summary | `gold/olist/data_quality/silver_quarantine_summary` |
+| Rejection reason summary | `gold/olist/data_quality/rejection_reason_summary` |
+| Data quality metrics | `gold/olist/data_quality/data_quality_metrics` |
+| Quality overview | `gold/olist/data_quality/quality_overview` |
+| Quarantine overview | `gold/olist/data_quality/quarantine_overview` |
+
+These datasets are used for:
+
+- quality monitoring
+- rejection analysis
+- Silver and Gold validation reporting
+- future operational dashboards
 
 ## Logs Container
 
 Logs base path:
 
-`abfss://logs@stnovacartdev.dfs.core.windows.net/`
+```text
+abfss://logs@stnovacartdev.dfs.core.windows.net/
+```
 
 The logs layer has not been implemented yet.
 
 Planned use:
 
 - pipeline execution logs
-- audit summaries
-- data quality run results
-- workflow status outputs
+- workflow run summaries
+- audit records
+- failure details
+- operational status outputs
 
 ## External Locations
 
 Unity Catalog external locations are configured at the container level.
 
-Current external locations:
+Project external locations include:
 
 | External location | Container |
 |---|---|
@@ -188,19 +291,19 @@ Current external locations:
 | `novacart_bronze_location` | `bronze` |
 | `novacart_silver_location` | `silver` |
 | `novacart_quarantine_location` | `quarantine` |
+| `novacart_gold_location` | `gold` |
 
-Future external locations:
+A logs external location may be added when the logs layer is implemented:
 
 | External location | Container |
 |---|---|
-| `novacart_gold_location` | `gold` |
 | `novacart_logs_location` | `logs` |
 
 ## Design Decisions
 
 ### One Container per Layer
 
-Each data layer has its own ADLS container.
+Each major data layer has its own ADLS container.
 
 This improves:
 
@@ -208,28 +311,48 @@ This improves:
 - access control
 - operational clarity
 - debugging
-- future lifecycle management
+- lifecycle management
 
 ### One External Location per Container
 
-External locations are created at the container level, not per dataset.
+External locations are created at the container level rather than per dataset.
 
-This avoids unnecessary Unity Catalog objects and keeps access management simpler.
+This avoids unnecessary Unity Catalog objects and keeps storage access management simpler.
 
 ### Delta for Processed Layers
 
-Bronze, Silver, quarantine, and future Gold outputs are stored as Delta datasets.
+Bronze, Silver, Quarantine, and Gold outputs are stored as Delta datasets.
 
 This provides:
 
 - ACID transactions
 - schema enforcement
+- transaction history
 - reliable overwrite behavior
-- transaction logs
-- efficient downstream processing
+- efficient downstream reads
 
 ### Raw Files Remain CSV
 
-The raw container stores the original source files as CSV.
+The Raw container stores the original source files as CSV.
 
-The conversion to Delta starts in Bronze.
+Conversion to Delta begins in the Bronze layer.
+
+### Path-Based Data Access
+
+The project uses path-based Delta reads and writes.
+
+Example:
+
+```text
+abfss://silver@stnovacartdev.dfs.core.windows.net/olist/orders
+```
+
+Unity Catalog governs access to the ADLS containers, but the current pipeline does not depend on registered managed tables.
+
+### Full Overwrite Strategy
+
+Bronze, Silver, and Gold currently use full overwrite writes.
+
+This is intentional because the Olist dataset is static and the platform is designed around complete batch reruns.
+
+Incremental ingestion, Delta `MERGE`, and historical change processing are outside the current project scope.

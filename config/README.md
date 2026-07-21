@@ -1,22 +1,26 @@
 # Configuration
 
-This folder stores non-secret project configuration for the NovaCart Data Platform.
+This folder is reserved for non-secret project configuration for the NovaCart Data Platform.
 
-## Files
+## Current State
 
-- `dev_config.json`
+No standalone configuration file is currently used.
 
-## Purpose
+Environment-specific paths and dataset settings are defined directly in the Databricks notebooks and shared Python modules.
 
-The configuration file documents stable development settings such as:
+## Intended Use
+
+This folder may later contain non-secret configuration such as:
 
 - project name
 - environment name
 - storage account name
 - ADLS container names
 - base storage paths
-- dataset file names
-- Bronze, Silver, and quarantine dataset paths
+- dataset names
+- source file mappings
+- Bronze, Silver, Quarantine, and Gold paths
+- workflow parameters
 
 ## Security Rules
 
@@ -32,3 +36,17 @@ Never commit:
 - personal access tokens
 
 Authentication is handled through Azure Databricks, Unity Catalog, and managed identity.
+
+## Future Improvement
+
+A structured configuration file may be added later if the pipeline is refactored to centralize environment settings.
+
+Possible options include:
+
+- `dev_config.json`
+- YAML configuration
+- Databricks widgets
+- Databricks Asset Bundle variables
+- environment-specific job parameters
+
+Any future configuration file must contain only non-secret values.

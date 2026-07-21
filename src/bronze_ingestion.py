@@ -3,6 +3,7 @@ from typing import Iterable
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
+from pyspark.sql.types import StructType
 
 
 def ingest_csv_to_delta(
@@ -11,6 +12,7 @@ def ingest_csv_to_delta(
     source_path: str,
     destination_path: str,
     expected_columns: Iterable[str],
+    source_schema: StructType,
     spark_session: SparkSession,
     csv_options: dict[str, object] | None = None,
 ) -> DataFrame:
@@ -18,7 +20,7 @@ def ingest_csv_to_delta(
     Ingest a CSV dataset into the Bronze Delta layer.
 
     The function:
-    - reads the source CSV;
+    - reads the source CSV using an explicit schema;
     - applies optional dataset-specific CSV settings;
     - captures source-file lineage;
     - validates required columns;
@@ -30,7 +32,18 @@ def ingest_csv_to_delta(
     """
 
     expected_columns_set = set(expected_columns)
+    schema_columns_set = set(source_schema.fieldNames())
     csv_options = csv_options or {}
+
+    missing_schema_columns = (
+        expected_columns_set - schema_columns_set
+    )
+
+    if missing_schema_columns:
+        raise ValueError(
+            f"{dataset_name} schema is missing required columns: "
+            f"{sorted(missing_schema_columns)}"
+        )
 
     batch_id = datetime.now(timezone.utc).strftime(
         "%Y%m%dT%H%M%SZ"
@@ -39,8 +52,8 @@ def ingest_csv_to_delta(
     reader = (
         spark_session.read
         .option("header", True)
-        .option("inferSchema", True)
         .option("mode", "FAILFAST")
+        .schema(source_schema)
     )
 
     for option_name, option_value in csv_options.items():

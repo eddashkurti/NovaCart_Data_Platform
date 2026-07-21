@@ -4,7 +4,7 @@
 
 The Silver layer contains cleaned, standardized, and validated datasets derived from the Bronze Delta layer.
 
-Bronze preserves raw source structure with ingestion metadata. Silver improves data quality while keeping each dataset close to its original business meaning.
+Bronze preserves the original source structure with ingestion metadata. Silver improves data quality while keeping each dataset close to its original business meaning.
 
 ## Design Principles
 
@@ -16,23 +16,30 @@ The Silver layer follows these principles:
 - valid records written to the Silver container
 - Bronze lineage columns preserved
 - Silver processing metadata added
+- duplicate business-key validation applied where a reliable grain exists
 - row-count reconciliation performed after every transformation
 
 ## Storage Layout
 
 Silver outputs are written to:
 
-`abfss://silver@stnovacartdev.dfs.core.windows.net/olist/<dataset_name>`
+```text
+abfss://silver@stnovacartdev.dfs.core.windows.net/olist/<dataset_name>
+```
 
 Quarantined records are written to:
 
-`abfss://quarantine@stnovacartdev.dfs.core.windows.net/olist/<dataset_name>`
+```text
+abfss://quarantine@stnovacartdev.dfs.core.windows.net/olist/<dataset_name>
+```
 
 ## Notebook Structure
 
 Silver notebooks are stored under:
 
-`notebooks/02_silver/`
+```text
+notebooks/silver/
+```
 
 Current Silver notebooks:
 
@@ -53,13 +60,14 @@ Each notebook follows the same general flow:
 3. validate required columns
 4. profile data quality
 5. clean and standardize fields
-6. apply dataset-specific validation rules
-7. assign rejection reasons
-8. split valid and invalid records
-9. add Silver and quarantine metadata
-10. write Delta outputs
-11. read outputs back
-12. validate row counts
+6. calculate duplicate business-key counts where applicable
+7. apply dataset-specific validation rules
+8. assign rejection reasons
+9. split valid and invalid records
+10. add Silver and quarantine metadata
+11. write Delta outputs
+12. read outputs back
+13. validate row counts
 
 ## Metadata Columns
 
@@ -79,9 +87,17 @@ Quarantine datasets add:
 - `_quarantined_at`
 - `_source_dataset`
 
+Temporary duplicate-count columns are removed before valid and quarantined outputs are written.
+
 ## Dataset Rules
 
 ### Customers
+
+Business grain:
+
+```text
+customer_id
+```
 
 Rules applied:
 
@@ -91,6 +107,13 @@ Rules applied:
 - normalize city names
 - normalize state codes
 - validate state format
+- reject duplicate customer IDs
+
+Duplicate rejection reason:
+
+```text
+DUPLICATE_CUSTOMER_ID
+```
 
 Result:
 
@@ -99,6 +122,12 @@ Result:
 
 ### Orders
 
+Business grain:
+
+```text
+order_id
+```
+
 Rules applied:
 
 - validate order IDs
@@ -106,6 +135,7 @@ Rules applied:
 - validate allowed order statuses
 - validate purchase timestamp
 - validate timestamp chronology
+- reject duplicate order IDs
 - derive delivery metrics
 
 Derived columns:
@@ -115,12 +145,24 @@ Derived columns:
 - `delivery_delay_days`
 - `is_delayed`
 
+Duplicate rejection reason:
+
+```text
+DUPLICATE_ORDER_ID
+```
+
 Result:
 
 - Silver rows: 99,252
 - Quarantined rows: 189
 
 ### Order Items
+
+Business grain:
+
+```text
+order_id + order_item_id
+```
 
 Rules applied:
 
@@ -131,7 +173,13 @@ Rules applied:
 - validate shipping limit date
 - reject null or negative price
 - reject null or negative freight value
-- check duplicate `(order_id, order_item_id)` keys
+- reject duplicate order-item keys
+
+Duplicate rejection reason:
+
+```text
+DUPLICATE_ORDER_ITEM_KEY
+```
 
 Result:
 
@@ -139,6 +187,12 @@ Result:
 - Quarantined rows: 0
 
 ### Order Payments
+
+Business grain:
+
+```text
+order_id + payment_sequential
+```
 
 Rules applied:
 
@@ -148,6 +202,13 @@ Rules applied:
 - validate payment installments
 - reject null or negative payment values
 - route `not_defined` payment types to quarantine
+- reject duplicate payment keys
+
+Duplicate rejection reason:
+
+```text
+DUPLICATE_PAYMENT_KEY
+```
 
 Result:
 
@@ -155,6 +216,12 @@ Result:
 - Quarantined rows: 3
 
 ### Order Reviews
+
+Business grain:
+
+```text
+review_id + order_id
+```
 
 Rules applied:
 
@@ -164,6 +231,13 @@ Rules applied:
 - validate review timestamps
 - clean comment title and message
 - preserve missing comments as valid
+- reject duplicate review-order keys
+
+Duplicate rejection reason:
+
+```text
+DUPLICATE_REVIEW_ORDER_KEY
+```
 
 Result:
 
@@ -171,6 +245,12 @@ Result:
 - Quarantined rows: 0
 
 ### Products
+
+Business grain:
+
+```text
+product_id
+```
 
 Rules applied:
 
@@ -181,17 +261,32 @@ Rules applied:
   - `product_description_lenght` to `product_description_length`
 - validate product weight and dimensions
 - derive product volume
+- reject duplicate product IDs
 
 Derived column:
 
-- `product_volume_cm3`
+```text
+product_volume_cm3
+```
+
+Duplicate rejection reason:
+
+```text
+DUPLICATE_PRODUCT_ID
+```
 
 Result:
 
-- Silver rows: 32,945
+- Silver rows: 32,951
 - Quarantined rows: 6
 
 ### Sellers
+
+Business grain:
+
+```text
+seller_id
+```
 
 Rules applied:
 
@@ -200,6 +295,13 @@ Rules applied:
 - normalize city names
 - normalize state codes
 - validate state format
+- reject duplicate seller IDs
+
+Duplicate rejection reason:
+
+```text
+DUPLICATE_SELLER_ID
+```
 
 Result:
 
@@ -217,7 +319,11 @@ Rules applied:
 - normalize state codes
 - validate state format
 
-Geolocation records are not deduplicated in Silver. Repeated ZIP or coordinate records are preserved because Silver should not change the source grain. Aggregation can be handled later in Gold if a geolocation dimension is needed.
+Geolocation records are not deduplicated in Silver.
+
+Repeated ZIP prefixes, coordinates, cities, and states can be legitimate in the source data. The dataset therefore does not have a reliable unique business grain for duplicate quarantine.
+
+Aggregation or deduplication can be handled later if a dedicated geolocation dimension is introduced.
 
 Result:
 
@@ -226,11 +332,24 @@ Result:
 
 ### Category Translation
 
+Business grain:
+
+```text
+product_category_name
+```
+
 Rules applied:
 
 - validate Portuguese category names
 - validate English category names
 - trim and lowercase category values
+- reject duplicate Portuguese category names
+
+Duplicate rejection reason:
+
+```text
+DUPLICATE_PRODUCT_CATEGORY_NAME
+```
 
 Result:
 
@@ -241,12 +360,71 @@ Result:
 
 For each Silver pipeline:
 
-`Silver row count + quarantine row count = Bronze input row count`
+```text
+Silver row count + quarantine row count = Bronze input row count
+```
 
 This confirms that every Bronze record is either accepted into Silver or routed to quarantine.
 
-## Notes
+## Current Quarantine Summary
 
-Silver transformations are intentionally not centralized into one generic function yet. Each dataset has different business rules, so keeping the validation logic inside each notebook makes the layer easier to understand and debug.
+| Dataset | Silver Rows | Quarantined Rows |
+|---|---:|---:|
+| Customers | 99,441 | 0 |
+| Orders | 99,252 | 189 |
+| Order items | 112,650 | 0 |
+| Order payments | 103,883 | 3 |
+| Order reviews | 99,224 | 0 |
+| Products | 32,951 | 6 |
+| Sellers | 3,095 | 0 |
+| Geolocation | 1,000,163 | 0 |
+| Category translation | 71 | 0 |
 
-Reusable Silver utilities may be introduced later for repeated tasks such as row-count reconciliation, required-column checks, and Delta write validation.
+Total quarantined rows:
+
+```text
+198
+```
+
+Datasets with quarantined records:
+
+- orders
+- order payments
+- products
+
+## Design Decision
+
+Silver transformations are intentionally not centralized into one generic transformation function.
+
+Each dataset has different business rules, grains, validation logic, and derived columns. Keeping the main validation logic inside each notebook makes the pipelines easier to understand, debug, and review.
+
+Reusable Silver utilities may be introduced later for repeated operations such as:
+
+- required-column validation
+- row-count reconciliation
+- duplicate-key detection
+- Delta write validation
+- output readback checks
+
+## Write Strategy
+
+Silver currently uses full overwrite writes.
+
+This is intentional because the Olist source is a static batch dataset and the current platform is designed for complete pipeline reruns.
+
+Incremental processing, merge logic, and change-data handling may be added later if the project is extended to support continuously arriving data.
+
+## Relationship to Gold
+
+Gold reads only validated Silver outputs.
+
+Quarantined records are excluded from Gold dimensions, facts, analytics datasets, and quality metrics.
+
+The Gold layer then applies:
+
+- dimension and fact modeling
+- analytical grain enforcement
+- business aggregations
+- final null-key validation
+- duplicate grain validation
+- reporting-ready quality checks
