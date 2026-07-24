@@ -310,6 +310,11 @@ Automated tests: Planned
 - incremental processing
 
 ---
+### Future Refactoring
+
+Bronze ingestion has been consolidated into a shared ingestion module.
+
+Silver and Gold notebooks intentionally remain self-contained for readability. If the platform grows beyond the current nine datasets, common validation and write/readback logic can be extracted into shared utility modules (for example `silver_utils.py`, `gold_utils.py`, and `quality_utils.py`) to further reduce duplication.
 
 ## Documentation
 
