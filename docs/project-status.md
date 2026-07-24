@@ -92,7 +92,7 @@ Silver datasets:
 | Order items | 112,650 | 0 |
 | Order payments | 103,883 | 3 |
 | Order reviews | 99,224 | 0 |
-| Products | 32,951 | 6 |
+| Products | 32,945 | 6 |
 | Sellers | 3,095 | 0 |
 | Geolocation | 1,000,163 | 0 |
 | Category translation | 71 | 0 |
