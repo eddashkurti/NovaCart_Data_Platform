@@ -50,11 +50,12 @@ def ingest_csv_to_delta(
     )
 
     reader = (
-        spark_session.read
-        .option("header", True)
-        .option("mode", "FAILFAST")
-        .schema(source_schema)
-    )
+    spark_session.read
+    .option("header", True)
+    .option("mode", "FAILFAST")
+    .option("enforceSchema", False)
+    .schema(source_schema)
+)
 
     for option_name, option_value in csv_options.items():
         reader = reader.option(option_name, option_value)
