@@ -1,0 +1,352 @@
+resources:
+  jobs:
+    novacart_end_to_end_pipeline:
+      name: NovaCart End-to-End Pipeline
+      tasks:
+        - task_key: bronze_category_translation
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/bronze/09_ingest_category_translation.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: bronze_customers
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/bronze/01_ingest_customers.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: bronze_geolocation
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/bronze/08_ingest_geolocation.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: bronze_order_items
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/bronze/03_ingest_order_items.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: bronze_order_payments
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/bronze/04_ingest_order_payments.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: bronze_order_reviews
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/bronze/05_ingest_order_reviews.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: bronze_orders
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/bronze/02_ingest_orders.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: bronze_products
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/bronze/06_ingest_products.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: bronze_sellers
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/bronze/07_ingest_sellers.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: silver_category_translation
+          depends_on:
+            - task_key: bronze_category_translation
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/silver/09_transform_category_translation.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: silver_customers
+          depends_on:
+            - task_key: bronze_customers
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/silver/01_transform_customers.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: gold_dim_customers
+          depends_on:
+            - task_key: silver_customers
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/gold/01_dim_customers.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: silver_geolocation
+          depends_on:
+            - task_key: bronze_geolocation
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/silver/08_transform_geolocation.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: silver_order_items
+          depends_on:
+            - task_key: bronze_order_items
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/silver/03_transform_order_items.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: gold_fact_order_items
+          depends_on:
+            - task_key: silver_order_items
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/gold/06_fact_order_items.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: silver_order_payments
+          depends_on:
+            - task_key: bronze_order_payments
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/silver/04_transform_order_payments.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: gold_fact_payments
+          depends_on:
+            - task_key: silver_order_payments
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/gold/07_fact_payments.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: silver_order_reviews
+          depends_on:
+            - task_key: bronze_order_reviews
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/silver/05_transform_order_reviews.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: gold_fact_reviews
+          depends_on:
+            - task_key: silver_order_reviews
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/gold/08_fact_reviews.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: silver_orders
+          depends_on:
+            - task_key: bronze_orders
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/silver/02_transform_orders.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: gold_dim_dates
+          depends_on:
+            - task_key: silver_orders
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/gold/04_dim_dates.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: gold_fact_orders
+          depends_on:
+            - task_key: silver_orders
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/gold/05_fact_orders.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: silver_products
+          depends_on:
+            - task_key: bronze_products
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/silver/06_transform_products.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: gold_dim_products
+          depends_on:
+            - task_key: silver_category_translation
+            - task_key: silver_products
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/gold/03_dim_products.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: silver_sellers
+          depends_on:
+            - task_key: bronze_sellers
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/silver/07_transform_sellers.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: gold_dim_sellers
+          depends_on:
+            - task_key: silver_sellers
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/gold/02_dim_sellers.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: gold_business_aggregates
+          depends_on:
+            - task_key: gold_fact_reviews
+            - task_key: gold_fact_payments
+            - task_key: gold_dim_customers
+            - task_key: gold_dim_products
+            - task_key: gold_fact_order_items
+            - task_key: gold_dim_sellers
+            - task_key: gold_fact_orders
+            - task_key: gold_dim_dates
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/gold/09_business_aggregates.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: gold_quality_checks
+          depends_on:
+            - task_key: gold_business_aggregates
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/gold/10_gold_quality_checks.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: quality_silver_quarantine_summary
+          depends_on:
+            - task_key: silver_customers
+            - task_key: silver_geolocation
+            - task_key: silver_sellers
+            - task_key: silver_category_translation
+            - task_key: silver_orders
+            - task_key: silver_products
+            - task_key: silver_order_payments
+            - task_key: silver_order_items
+            - task_key: silver_order_reviews
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/quality/01_silver_quarantine_summary.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: quality_data_quality_metrics
+          depends_on:
+            - task_key: quality_silver_quarantine_summary
+            - task_key: gold_quality_checks
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/quality/02_data_quality_metrics.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+          webhook_notifications: {}
+        - task_key: quality_data_quality_report
+          depends_on:
+            - task_key: quality_data_quality_metrics
+          disabled: false
+          email_notifications: {}
+          notebook_task:
+            notebook_path: ../notebooks/quality/03_data_quality_report.ipynb
+            source: WORKSPACE
+          run_if: ALL_SUCCESS
+          timeout_seconds: 0
+      email_notifications:
+        no_alert_for_skipped_runs: false
+      max_concurrent_runs: 1
+      performance_target: PERFORMANCE_OPTIMIZED
+      queue:
+        enabled: true
+      timeout_seconds: 0
+      webhook_notifications: {}
