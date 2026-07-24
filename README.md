@@ -2,7 +2,7 @@
 
 NovaCart is an end-to-end e-commerce data engineering project built on Microsoft Azure and Databricks.
 
-The project uses the Olist Brazilian E-Commerce dataset to implement a cloud-based Medallion Architecture with Raw ingestion, Bronze Delta processing, Silver cleansing and validation, quarantine handling, Gold analytical modeling, data-quality reporting, and Databricks Job orchestration.
+The project uses the Olist Brazilian E-Commerce dataset to implement a cloud-based Medallion Architecture with Raw ingestion, Bronze Delta processing, Silver cleansing and validation, quarantine handling, Gold analytical modeling, data-quality reporting, Databricks Job orchestration, and bundle-based deployment.
 
 The goal is to simulate a small production-style data platform using modern cloud data engineering tools and practices.
 
@@ -38,6 +38,7 @@ Data quality reporting
 - Azure Databricks
 - Databricks Serverless Compute
 - Databricks Jobs
+- Databricks Declarative Automation Bundles
 - Unity Catalog
 - Azure Databricks Access Connector
 - Managed Identity
@@ -222,6 +223,30 @@ The complete pipeline was executed successfully on July 21, 2026.
 Final run status: Succeeded
 ```
 
+## Deployment
+
+The project uses a Databricks Declarative Automation Bundle to manage the end-to-end workflow as Infrastructure as Code.
+
+Bundle configuration:
+
+- `databricks.yml`
+- `resources/novacart_end_to_end_pipeline.job.yml`
+
+The existing 31-task Databricks Job was imported and bound to the bundle, allowing the workflow configuration to be version-controlled alongside the project source code.
+
+The bundle supports:
+
+- configuration validation
+- reproducible deployment
+- version-controlled workflow configuration
+
+Deployment was validated using:
+
+```bash
+databricks bundle validate
+databricks bundle deploy
+```
+
 ---
 
 ## Repository Structure
@@ -249,6 +274,9 @@ NovaCart_Data_Platform/
 │   ├── gold/
 │   └── quality/
 │
+├── resources/
+│   └── novacart_end_to_end_pipeline.job.yml
+│
 ├── src/
 │   ├── __init__.py
 │   ├── README.md
@@ -259,7 +287,8 @@ NovaCart_Data_Platform/
 │   └── test_plan.md
 │
 ├── LICENSE.md
-└── README.md
+├── README.md
+└── databricks.yml
 ```
 
 ---
@@ -293,6 +322,7 @@ Quarantine: Completed
 Gold: Completed
 Data quality: Completed
 Databricks Job orchestration: Completed
+Bundle deployment: Completed
 Dashboards: Not started
 Automated tests: Planned
 ```
